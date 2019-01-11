@@ -36,6 +36,10 @@ def encrypt_message(K, message):
     plaintext = message.encode("utf8")
     
     ## YOUR CODE HERE
+    aes = Cipher("aes-128-gcm")
+    iv = urandom(16)
+
+    ciphertext, tag = aes.quick_gcm_enc(K, iv, plaintext)
 
     return (iv, ciphertext, tag)
 
@@ -45,6 +49,8 @@ def decrypt_message(K, iv, ciphertext, tag):
         In case the decryption fails, throw an exception.
     """
     ## YOUR CODE HERE
+    aes = Cipher("aes-128-gcm")
+    plain = aes.quick_gcm_dec(K, iv, ciphertext, tag)
 
     return plain.encode("utf8")
 
@@ -76,9 +82,9 @@ def is_point_on_curve(a, b, p, x, y):
     assert isinstance(b, Bn)
     assert isinstance(p, Bn) and p > 0
     assert (isinstance(x, Bn) and isinstance(y, Bn)) \
-           or (x == None and y == None)
+           or (x is None and y is None)
 
-    if x == None and y == None:
+    if x is None and y is None:
         return True
 
     lhs = (y * y) % p
@@ -101,7 +107,26 @@ def point_add(a, b, p, x0, y0, x1, y1):
     """
 
     # ADD YOUR CODE BELOW
+    if x0 is x1 and y1 is y0:
+        raise Exception("EC Points must not be equal")
+    # Check if first point is infinite
+    if x0 is None and y0 is None:
+        return (x1, y1)
+    # Check if second point is infinite 
+    if x1 is None and y1 is None:
+        return(x0, y0)
+    
     xr, yr = None, None
+    # Check if inverse is infinite
+    sub = x1.mod_sub(x0, p)
+    try:
+        sub.mod_inverse(p)
+    except:
+        return (None, None)
+
+    lam  = (y1.mod_sub(y0, p)).mod_mul((x1.mod_sub(x0, p)).mod_inverse(p), p)
+    xr = (lam.mod_pow(2, p).mod_sub(x0, p)).mod_sub(x1, p)
+    yr = (lam.mod_mul((x0.mod_sub(xr, p)), p)).mod_sub(y0, p)
     
     return (xr, yr)
 
