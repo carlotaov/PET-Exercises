@@ -267,8 +267,6 @@ def dh_get_key():
     pub_enc = priv_dec * G.generator()
     return (G, priv_dec, pub_enc)
 
-from binascii import unhexlify
-
 def dh_encrypt(pub, message, aliceSig = None):
     """ Assume you know the public key of someone else (Bob), 
     and wish to Encrypt a message for them.
