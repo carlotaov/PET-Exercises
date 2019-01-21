@@ -8,7 +8,7 @@
 # $ py.test-2.7 -v Lab01Tests.py 
 
 ###########################
-# Group Members: TODO
+# Group Members: Carlota Ortega Vega
 ###########################
 
 
@@ -143,9 +143,16 @@ def point_double(a, b, p, x, y):
     """  
 
     # ADD YOUR CODE BELOW
+    if x is None or y is None:
+        return (None, None)
+
     xr, yr = None, None
 
-    return xr, yr
+    lam = (((x.mod_pow(2, p)).mod_mul(3, p)).mod_add(a, p)).mod_mul(((y.mod_mul(2, p)).mod_inverse(p)), p)
+    xr = (lam.mod_pow(2, p)).mod_sub(x.mod_mul(2, p), p)
+    yr = (lam.mod_mul(x.mod_sub(xr, p), p)).mod_sub(y, p)
+    
+    return (xr, yr)
 
 def point_scalar_multiplication_double_and_add(a, b, p, x, y, scalar):
     """
@@ -163,9 +170,12 @@ def point_scalar_multiplication_double_and_add(a, b, p, x, y, scalar):
     """
     Q = (None, None)
     P = (x, y)
+    bin_scalar = bin(scalar)
 
     for i in range(scalar.num_bits()):
-        pass ## ADD YOUR CODE HERE
+        if bin_scalar[scalar.num_bits() - i + 1] == '1':
+            Q = point_add(a, b, p, Q[0], Q[1], P[0], P[1])
+        P = point_double(a, b, p, P[0], P[1])
 
     return Q
 
@@ -189,9 +199,15 @@ def point_scalar_multiplication_montgomerry_ladder(a, b, p, x, y, scalar):
     """
     R0 = (None, None)
     R1 = (x, y)
+    bin_scalar = bin(scalar)
 
     for i in reversed(range(0,scalar.num_bits())):
-        pass ## ADD YOUR CODE HERE
+        if bin_scalar[scalar.num_bits() - i + 1] == '0':
+            R1 = point_add(a, b, p, R0[0], R0[1], R1[0], R1[1])
+            R0 = point_double(a, b, p, R0[0], R0[1])
+        else:
+            R0 = point_add(a, b, p, R0[0], R0[1], R1[0], R1[1])
+            R1 = point_double(a, b, p, R1[0], R1[1])
 
     return R0
 
@@ -222,7 +238,8 @@ def ecdsa_sign(G, priv_sign, message):
     plaintext =  message.encode("utf8")
 
     ## YOUR CODE HERE
-
+    digest = sha256(plaintext).digest()
+    sig = do_ecdsa_sign(G, priv_sign, digest)
     return sig
 
 def ecdsa_verify(G, pub_verify, message, sig):
@@ -230,6 +247,8 @@ def ecdsa_verify(G, pub_verify, message, sig):
     plaintext =  message.encode("utf8")
 
     ## YOUR CODE HERE
+    digest = sha256(plaintext).digest()
+    res = do_ecdsa_verify(G, pub_verify, sig, digest)
 
     return res
 
@@ -248,6 +267,7 @@ def dh_get_key():
     pub_enc = priv_dec * G.generator()
     return (G, priv_dec, pub_enc)
 
+from binascii import unhexlify
 
 def dh_encrypt(pub, message, aliceSig = None):
     """ Assume you know the public key of someone else (Bob), 
@@ -259,15 +279,40 @@ def dh_encrypt(pub, message, aliceSig = None):
     """
     
     ## YOUR CODE HERE
-    pass
+    G, priv_dec, pub_enc = dh_get_key()
 
-def dh_decrypt(priv, ciphertext, aliceVer = None):
+    shared_key, _ = pub.pt_mul(priv_dec).get_affine()
+    shared_key = sha256(shared_key.repr()).hexdigest()
+    shared_key = shared_key[:32]
+
+    plaintext = message.encode("utf8")
+    aes = Cipher("aes-256-gcm")
+    iv = urandom(32)
+
+    ciphertext, tag = aes.quick_gcm_enc(shared_key, iv, plaintext)
+
+    return (iv, ciphertext, tag, pub_enc)
+
+def dh_decrypt(priv, iv, ciphertext, tag, pub1, aliceVer = None):
     """ Decrypt a received message encrypted using your public key, 
     of which the private key is provided. Optionally verify 
     the message came from Alice using her verification key."""
     
     ## YOUR CODE HERE
-    pass
+    shared_key, _ = pub1.pt_mul(priv).get_affine()
+    shared_key = sha256(shared_key.repr()).hexdigest()
+    shared_key = shared_key[:32]
+    
+    aes = Cipher("aes-256-gcm")
+
+    try:
+        plaintext = aes.quick_gcm_dec(shared_key, iv, ciphertext, tag)
+    except:
+        raise Exception("Error: Failed encryption")
+
+    message = plaintext.decode("utf8")
+
+    return message
 
 ## NOTE: populate those (or more) tests
 #  ensure they run using the "py.test filename" command.
@@ -275,13 +320,59 @@ def dh_decrypt(priv, ciphertext, aliceVer = None):
 #  $ py.test-2.7 --cov-report html --cov Lab01Code Lab01Code.py 
 
 def test_encrypt():
-    assert False
+    G, priv, pub = dh_get_key()
+    message = "message"
+    iv, ciphertext, tag, pub1 = dh_encrypt(pub, message)
+    assert len(iv) == 32
+    assert len(ciphertext) == len(message)
 
 def test_decrypt():
-    assert False
+    G, priv, pub = dh_get_key()
+    message = "message"
+    iv, ciphertext, tag, pub1 = dh_encrypt(pub, message)
+    plaintext = dh_decrypt(priv, iv, ciphertext, tag, pub1)
+    assert plaintext == message 
 
 def test_fails():
-    assert False
+    G, priv, pub = dh_get_key()
+    message = "message"
+
+    iv, ciphertext, tag, pub1 = dh_encrypt(pub, message)
+
+    # Wrong iv
+    test_iv = urandom(32)
+    try:
+        dh_decrypt(priv, test_iv, ciphertext, tag, pub1)
+    except Exception, e:
+        assert "Error: Failed encryption" in str(e)
+
+    # Wrong ciphertext
+    test_ciphertext = urandom(len(ciphertext))
+    try:
+        dh_decrypt(priv, iv, test_ciphertext, tag, pub1)
+    except Exception, e:
+        assert "Error: Failed encryption" in str(e)
+
+    # Wrong tag
+    test_tag = urandom(len(tag))
+    try:
+        dh_decrypt(priv, iv, ciphertext, test_tag, pub1)
+    except Exception, e:
+        assert "Error: Failed encryption" in str(e)
+    
+    # Wrong public or private key
+    test_G, test_priv, test_pub = dh_get_key()
+    try:
+        dh_decrypt(priv, iv, ciphertext, tag, test_pub)
+    except Exception, e:
+        assert "Error: Failed encryption" in str(e)
+    
+    try:
+        dh_decrypt(test_priv, iv, ciphertext, tag, pub1)
+    except Exception, e:
+        assert "Error: Failed encryption" in str(e)
+
+    
 
 #####################################################
 # TASK 6 -- Time EC scalar multiplication
