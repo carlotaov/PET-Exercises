@@ -133,7 +133,7 @@ def mix_client_one_hop(public_key, address, message):
     client_public_key  = private_key * G.generator()
 
     ## ADD CODE HERE
-    ## First get a shared key
+    # First get a shared key
     shared_element = private_key * public_key
     key_material = sha512(shared_element.export()).digest()
 
@@ -147,7 +147,7 @@ def mix_client_one_hop(public_key, address, message):
     address_cipher = aes_ctr_enc_dec(address_key, iv, address_plaintext)
     message_cipher = aes_ctr_enc_dec(message_key, iv, message_plaintext)
 
-    ## Check the HMAC
+    # Generate HMAC
     h = Hmac(b"sha512", hmac_key)        
     h.update(address_cipher)
     h.update(message_cipher)
@@ -281,6 +281,57 @@ def mix_client_n_hop(public_keys, address, message):
     client_public_key  = private_key * G.generator()
 
     ## ADD CODE HERE
+    # Initialize key_materials list
+    key_material_list = []
+
+    # Iterate the list of public keys
+    for public_key in public_keys:
+        # Get shared key
+        shared_element = private_key * public_key
+        key_material = sha512(shared_element.export()).digest()
+
+        # Insert at the head of the list
+        key_material_list.insert(0, key_material)
+
+        # Extract a blinding factor for the public_key
+        blinding_factor = Bn.from_binary(key_material[48:])
+        
+        # Change key using blinding factor
+        private_key *= blinding_factor
+
+    # Initialize
+    hmacs = []
+    address_cipher = address_plaintext
+    message_cipher = message_plaintext
+
+    # Iterate the public keys in reverse order
+    for i, public_key in enumerate(public_keys[::-1]):
+        # Use different parts of the shared key for different operations
+        hmac_key = key_material_list[i][:16]
+        address_key = key_material_list[i][16:32]
+        message_key = key_material_list[i][32:48]
+
+        # Encrypt address & message
+        iv = b"\x00"*16
+
+        address_cipher = aes_ctr_enc_dec(address_key, iv, address_cipher)
+        message_cipher= aes_ctr_enc_dec(message_key, iv, message_cipher) 
+
+        # Generate HMAC
+        h = Hmac(b"sha512", hmac_key)
+
+        # Generate new hmacs
+        for i, hmac in enumerate(hmacs):
+            iv = pack("H14s", i, b"\x00"*14)
+            new_hmac = aes_ctr_enc_dec(hmac_key, iv, hmac)
+            hmacs[i] = new_hmac
+            h.update(hmacs[i]) 
+
+        h.update(address_cipher)
+        h.update(message_cipher)
+
+        hmac = h.digest()[:20]
+        hmacs.insert(0, hmac)
 
     return NHopMixMessage(client_public_key, hmacs, address_cipher, message_cipher)
 

@@ -8,7 +8,7 @@
 # $ py.test-2.7 -v Lab01Tests.py 
 
 ###########################
-# Group Members: Carlota Ortega Vega
+# Group Members: TODO
 ###########################
 
 
@@ -267,6 +267,7 @@ def dh_get_key():
     pub_enc = priv_dec * G.generator()
     return (G, priv_dec, pub_enc)
 
+
 def dh_encrypt(pub, message, aliceSig = None):
     """ Assume you know the public key of someone else (Bob), 
     and wish to Encrypt a message for them.
@@ -277,40 +278,18 @@ def dh_encrypt(pub, message, aliceSig = None):
     """
     
     ## YOUR CODE HERE
-    G, priv_dec, pub_enc = dh_get_key()
+    dh_key = dh_get_key()
+    shared_key = dh_key[2]
+    ciphertext = encrypt_message(shared_key, message)
+    return ciphertext
 
-    shared_key, _ = pub.pt_mul(priv_dec).get_affine()
-    shared_key = sha256(shared_key.repr()).hexdigest()
-    shared_key = shared_key[:32]
-
-    plaintext = message.encode("utf8")
-    aes = Cipher("aes-256-gcm")
-    iv = urandom(32)
-
-    ciphertext, tag = aes.quick_gcm_enc(shared_key, iv, plaintext)
-
-    return (iv, ciphertext, tag, pub_enc)
-
-def dh_decrypt(priv, iv, ciphertext, tag, pub1, aliceVer = None):
+def dh_decrypt(priv, ciphertext, aliceVer = None):
     """ Decrypt a received message encrypted using your public key, 
     of which the private key is provided. Optionally verify 
     the message came from Alice using her verification key."""
     
     ## YOUR CODE HERE
-    shared_key, _ = pub1.pt_mul(priv).get_affine()
-    shared_key = sha256(shared_key.repr()).hexdigest()
-    shared_key = shared_key[:32]
-    
-    aes = Cipher("aes-256-gcm")
-
-    try:
-        plaintext = aes.quick_gcm_dec(shared_key, iv, ciphertext, tag)
-    except:
-        raise Exception("Error: Failed encryption")
-
-    message = plaintext.decode("utf8")
-
-    return message
+    plaintext = decrypt_message(priv, iv, ciphertext, tag):
 
 ## NOTE: populate those (or more) tests
 #  ensure they run using the "py.test filename" command.
@@ -318,59 +297,13 @@ def dh_decrypt(priv, iv, ciphertext, tag, pub1, aliceVer = None):
 #  $ py.test-2.7 --cov-report html --cov Lab01Code Lab01Code.py 
 
 def test_encrypt():
-    G, priv, pub = dh_get_key()
-    message = "message"
-    iv, ciphertext, tag, pub1 = dh_encrypt(pub, message)
-    assert len(iv) == 32
-    assert len(ciphertext) == len(message)
+    assert False
 
 def test_decrypt():
-    G, priv, pub = dh_get_key()
-    message = "message"
-    iv, ciphertext, tag, pub1 = dh_encrypt(pub, message)
-    plaintext = dh_decrypt(priv, iv, ciphertext, tag, pub1)
-    assert plaintext == message 
+    assert False
 
 def test_fails():
-    G, priv, pub = dh_get_key()
-    message = "message"
-
-    iv, ciphertext, tag, pub1 = dh_encrypt(pub, message)
-
-    # Wrong iv
-    test_iv = urandom(32)
-    try:
-        dh_decrypt(priv, test_iv, ciphertext, tag, pub1)
-    except Exception, e:
-        assert "Error: Failed encryption" in str(e)
-
-    # Wrong ciphertext
-    test_ciphertext = urandom(len(ciphertext))
-    try:
-        dh_decrypt(priv, iv, test_ciphertext, tag, pub1)
-    except Exception, e:
-        assert "Error: Failed encryption" in str(e)
-
-    # Wrong tag
-    test_tag = urandom(len(tag))
-    try:
-        dh_decrypt(priv, iv, ciphertext, test_tag, pub1)
-    except Exception, e:
-        assert "Error: Failed encryption" in str(e)
-    
-    # Wrong public or private key
-    test_G, test_priv, test_pub = dh_get_key()
-    try:
-        dh_decrypt(priv, iv, ciphertext, tag, test_pub)
-    except Exception, e:
-        assert "Error: Failed encryption" in str(e)
-    
-    try:
-        dh_decrypt(test_priv, iv, ciphertext, tag, pub1)
-    except Exception, e:
-        assert "Error: Failed encryption" in str(e)
-
-    
+    assert False
 
 #####################################################
 # TASK 6 -- Time EC scalar multiplication
