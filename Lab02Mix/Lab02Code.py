@@ -281,7 +281,7 @@ def mix_client_n_hop(public_keys, address, message):
     client_public_key  = private_key * G.generator()
 
     ## ADD CODE HERE
-    # Initialize key_materials list
+    # Initialize list of key_material
     key_material_list = []
 
     # Iterate the list of public keys
@@ -336,7 +336,6 @@ def mix_client_n_hop(public_keys, address, message):
     return NHopMixMessage(client_public_key, hmacs, address_cipher, message_cipher)
 
 
-
 #####################################################
 # TASK 4 -- Statistical Disclosure Attack
 #           Given a set of anonymized traces
@@ -380,20 +379,38 @@ def analyze_trace(trace, target_number_of_friends, target=0):
     return the list of receiver identifiers that are the most likely 
     friends of the target.
     """
-
     ## ADD CODE HERE
-
-    return []
+    count = Counter()
+    # Iterace through trace
+    for senders, receivers in trace:
+        # Filter receivers that could be receiving a message from the target
+        if target in senders:
+            count += Counter(receivers)
+    
+    """ 
+    Return likely friends of the target by selecting the top n receivers in the Counter, 
+    where n = target_number_of_friends
+    """
+    return [receivers for receivers, count in count.most_common(target_number_of_friends)]
 
 ## TASK Q1 (Question 1): The mix packet format you worked on uses AES-CTR with an IV set to all zeros. 
 #                        Explain whether this is a security concern and justify your answer.
 
-""" TODO: Your answer HERE """
+"""
+ANSWER: The initial value of the IV is irrelevant to the security of the system. Therefore, the IV being set 
+to all zeros would not be a security concern. However, the IV remains set to all zeros for all encryptions,
+therefore there is a security concern as the IV is reused. 
+"""
 
 
 ## TASK Q2 (Question 2): What assumptions does your implementation of the Statistical Disclosure Attack 
 #                        makes about the distribution of traffic from non-target senders to receivers? Is
 #                        the correctness of the result returned dependent on this background distribution?
 
-""" TODO: Your answer HERE """
+""" 
+ANSWER: The implementation of the Statistical Attack assumes that the distribution of traffic from non-target senders
+to receivers is uniform, i.e. there is an equal probability of a non-target sender sending a message to any of the 
+receivers. In other words, it assumes non-target senders do not have 'friends', or users they are sending messages to 
+more often. The correctness of the result returned is dependent on this background distribution. 
+"""
 
