@@ -408,8 +408,8 @@ therefore there is a security concern as the IV is reused.
 #                        the correctness of the result returned dependent on this background distribution?
 
 """ 
-ANSWER: The implementation of the Statistical Attack assumes that the distribution of traffic from non-target senders
-to receivers is uniform, i.e. there is an equal probability of a non-target sender sending a message to any of the 
+ANSWER: The implementation of the Statistical Disclosure Attack assumes that the distribution of traffic from non-target 
+senders to receivers is uniform, i.e. there is an equal probability of a non-target sender sending a message to any of the 
 receivers. In other words, it assumes non-target senders do not have 'friends', or users they are sending messages to 
 more often. The correctness of the result returned is dependent on this background distribution. 
 """
