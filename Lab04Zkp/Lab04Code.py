@@ -7,7 +7,7 @@
 # $ py.test -v test_file_name.py
 
 ###########################
-# Group Members: TODO
+# Group Members: Carlota Ortega Vega
 ###########################
 
 from petlib.ec import EcGroup
@@ -52,6 +52,12 @@ def proveKey(params, priv, pub):
     (G, g, hs, o) = params
     
     ## YOUR CODE HERE:
+    # Generate random witness
+    (w, W) = keyGen(params)
+    # Generate challenge
+    c = to_challenge([g, W])
+    # Compute response (r = w-cx (mod q))
+    r = w.mod_sub(c.mod_mul(priv, o), o)
     
     return (c, r)
 
@@ -92,6 +98,22 @@ def proveCommitment(params, C, r, secrets):
     x0, x1, x2, x3 = secrets
 
     ## YOUR CODE HERE:
+    # Generate witnesses
+    ws = []
+    for _ in range(4):
+        ws.append(o.random())
+    wr = o.random()
+
+    W = ws[0] * h0 + ws[1] * h1 + ws[2] * h2 + ws[3] * h3 + wr * g
+    
+    # Derive challenge
+    c = to_challenge([g, h0, h1, h2, h3, W])
+
+    # Compute responses
+    responses = []
+    for i in range(4):
+        responses.append(ws[i] - c * secrets[i])
+    responses.append(wr - c * r)
 
     return (c, responses)
 
@@ -139,8 +161,12 @@ def verifyDLEquality(params, K, L, proof):
     c, r = proof
 
     ## YOUR CODE HERE:
+    # Derive challenge
+    result = to_challenge([g, h0, r*g + c*K, r*h0 + c*L])
+    # Verify if equal
+    verification = result == c
 
-    return # YOUR RETURN HERE
+    return verification
 
 #####################################################
 # TASK 4 -- Prove correct encryption and knowledge of 
@@ -164,6 +190,20 @@ def proveEnc(params, pub, Ciphertext, k, m):
     a, b = Ciphertext
 
     ## YOUR CODE HERE:
+    # Generate witnesses
+    w1 = o.random()
+    w2 = o.random()
+
+    # W = g ^ w
+    Wa = w1 * g
+    Wb = w2 * h0 + w1 * pub
+
+    # Derive challenge
+    c = to_challenge([g, h0, pub, a, b, Wa, Wb])
+
+    # Compute responses (r = w-cx (mod q))
+    rk = w1.mod_sub(c.mod_mul(k, o), o)
+    rm = w2.mod_sub(c.mod_mul(m, o), o)
 
     return (c, (rk, rm))
 
@@ -174,8 +214,15 @@ def verifyEnc(params, pub, Ciphertext, proof):
     (c, (rk, rm)) = proof
 
     ## YOUR CODE HERE:
+    # g ^ r * pub ^ c = W
+    Wa = rk * g + c * a
+    Wb = (rm * h0 + rk * pub) + c * b
+    # Derive challenge
+    result = to_challenge([g, h0, pub, a, b, Wa, Wb])
+    # Verify if equal
+    verification = result == c
 
-    return ## YOUR RETURN HERE
+    return verification
 
 
 #####################################################
@@ -199,16 +246,41 @@ def prove_x0eq10x1plus20(params, C, x0, x1, r):
     (G, g, (h0, h1, h2, h3), o) = params
 
     ## YOUR CODE HERE:
+    # Generate witnesses
+    w1 = o.random()
+    w2 = o.random()
 
-    return ## YOUR RETURN HERE
+    Wh0 = w1 * (10 * h0)
+    Wh1 = w1 * h1
+    Wg = w2 * g
+
+    # Derive challenge
+    c = to_challenge([C, g, h0, Wh0 + Wh1 + Wg])
+
+    # Compute responses (r = w-cx (mod q))
+    rx1 = w1.mod_sub(c.mod_mul(x1, o), o)
+    rr = w2.mod_sub(c.mod_mul(r, o), o)
+
+    return c, rx1, rr
 
 def verify_x0eq10x1plus20(params, C, proof):
     """ Verify that proof of knowledge of C and x0 = 10 x1 + 20. """
     (G, g, (h0, h1, h2, h3), o) = params
 
     ## YOUR CODE HERE:
+    # Extract the values of the proof
+    c, rx1, rr = proof
 
-    return ## YOUR RETURN HERE
+    # Linear relation
+    relation = (rx1 * 10 * h0) + rx1 * h1 + rr * g
+    W = relation + c * (C + (-20 * h0))
+
+    # Derive challenge
+    result = to_challenge([C, g, h0, W])
+    # Verify if equal
+    verification = result == c
+
+    return verification
 
 #####################################################
 # TASK 6 -- (OPTIONAL) Prove that a ciphertext is either 0 or 1
@@ -253,7 +325,9 @@ def test_bin_incorrect():
 # that  deviates from the Schnorr identification protocol? Justify 
 # your answer by describing what a dishonest verifier may do.
 
-""" TODO: Your answer here. """
+""" A dishonest verifier might deviate from the Schnorr identification protocol by not 
+sampling the challenge randomly. As a result, plausibile deniability would not hold. 
+"""
 
 #####################################################
 # TASK Q2 - Answer the following question:
@@ -266,7 +340,9 @@ def test_bin_incorrect():
 #
 # Hint: Look at "test_prove_something" too.
 
-""" TODO: Your answer here. """
+"""
+The verifier is convinced that the prover knows secret x or secret y, but not necessarily both.
+"""
 
 def prove_something(params, KX, KY, y):
     (G, g, _, o) = params
